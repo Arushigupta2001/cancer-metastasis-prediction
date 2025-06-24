@@ -54,6 +54,5 @@ This project is for research and academic purposes only. It is **not** intended 
 ## 👩‍💻 Author
 
 **Arushi Gupta**  
-M.Sc. Bioinformatics  
-Project Mentor: [Your Professor / Guide Name]  
-Institution: [Your University / Lab Name]
+M.Sc. Bioinformatics   
+Institution: Amity University, Noida
