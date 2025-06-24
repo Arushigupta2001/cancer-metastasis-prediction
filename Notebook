@@ -1,0 +1,90 @@
+# 🧬 GSE40206: Breast Cancer Metastasis Prediction Tool
+# PhD-Ready ML Pipeline with GEOparse + Random Forest + ROC Analysis
+
+# ========== 1. IMPORT LIBRARIES ==========
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, roc_curve, accuracy_score
+import GEOparse
+
+# ========== 2. LOAD GEO DATA ==========
+print("📥 Loading GEO dataset...")
+gse = GEOparse.get_GEO(filepath="./data/GSE40206_family.soft", annotate_gpl=True)
+
+# Extract expression matrix and sample info
+expression_data = gse.pivot_samples("VALUE").T
+expression_data.index.name = "Sample"
+sample_info = gse.phenotype_data[["title"]]
+print("✔️ Samples:", expression_data.shape[0], "| Platform:", list(gse.gpls.keys()))
+
+# ========== 3. CONSTRUCT LABELS ==========
+print("🧷 Assigning labels...")
+expression_data['label'] = [0]*40 + [1]*40  # 0 = No Metastasis, 1 = Metastasis
+
+# ========== 4. PREPROCESSING ==========
+print("🧪 Preprocessing data...")
+X = expression_data.drop(columns=['label']).astype(float)
+y = expression_data['label']
+X = X.fillna(0)
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, stratify=y, random_state=42)
+
+# ========== 5. TRAIN RANDOM FOREST ==========
+print("🌲 Training Random Forest model...")
+clf = RandomForestClassifier(n_estimators=100, random_state=42)
+clf.fit(X_train, y_train)
+
+y_pred = clf.predict(X_test)
+y_prob = clf.predict_proba(X_test)[:, 1]
+
+# ========== 6. EVALUATION ==========
+print("\n📊 Evaluation Metrics:")
+print("✔️ Accuracy:", accuracy_score(y_test, y_pred))
+print("✔️ Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+print("✔️ Classification Report:\n", classification_report(y_test, y_pred))
+print("✔️ ROC-AUC Score:", roc_auc_score(y_test, y_prob))
+
+# ROC Curve
+fpr, tpr, _ = roc_curve(y_test, y_prob)
+plt.figure(figsize=(8, 6))
+plt.plot(fpr, tpr, label=f'ROC AUC = {roc_auc_score(y_test, y_prob):.2f}')
+plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic Curve')
+plt.legend()
+plt.tight_layout()
+plt.savefig("./results/roc_curve.png")
+plt.show()
+
+# ========== 7. FEATURE IMPORTANCE ==========
+print("🧬 Top 20 important genes:")
+feature_importance = pd.Series(clf.feature_importances_, index=X.columns)
+top_genes = feature_importance.sort_values(ascending=False).head(20)
+
+plt.figure(figsize=(10, 6))
+sns.barplot(x=top_genes.values, y=top_genes.index, palette='coolwarm')
+plt.title("Top 20 Important Genes for Metastasis Prediction")
+plt.xlabel("Feature Importance")
+plt.ylabel("Gene (ID)")
+plt.tight_layout()
+plt.savefig("./results/top_20_genes.png")
+plt.show()
+
+# ========== 8. NEXT STEPS ==========
+"""
+🔄 To Do:
+- Automatically extract real metastasis status from sample_info['title']
+- Add GridSearchCV for tuning Random Forest hyperparameters
+- Use SHAP/LIME for biological interpretation
+- Build a Streamlit app to visualize predictions interactively
+- Push full pipeline to GitHub for public access
+"""
+print("✅ Project completed.")
